@@ -178,7 +178,6 @@ fn minimax(board: &Board, player: Space) -> i32 {
 
 const MAX_DEPTH: i32 = 6;
 
-// TODO macro should make these
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     let available_cols = board.get_available_columns();
     let mut best_choice = match available_cols.first() {
