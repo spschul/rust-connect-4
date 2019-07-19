@@ -1,3 +1,4 @@
+use std::cmp;
 use std::fmt;
 use std::io;
 
@@ -36,12 +37,14 @@ impl fmt::Display for Space {
 #[derive(Clone, Copy)]
 struct Board {
     board: [[Space; BOARD_WIDTH]; BOARD_HEIGHT],
+    longest_sequences: [i32; 2],
 }
 
 impl Board {
     pub fn new() -> Board {
         Board {
             board: [[Space::EMPTY; BOARD_WIDTH]; BOARD_HEIGHT],
+            longest_sequences: [0, 0],
         }
     }
 
@@ -73,7 +76,29 @@ impl Board {
                 break;
             }
         }
+        let total_count = count_forward + count_backward;
+        *self.get_longest_sequence_mut(start_s) =
+            cmp::max(*self.get_longest_sequence(start_s), total_count);
         count_forward + count_backward >= LENGTH_TO_WIN
+    }
+
+    // TODO gotta be a better way than just to copy/paste
+    fn get_longest_sequence_mut(&mut self, s: Space) -> &mut i32 {
+        let index = match s {
+            Space::RED => 0,
+            Space::BLACK => 1,
+            Space::EMPTY => panic!("EMPTY where only RED and BLACK are options!"),
+        };
+        &mut self.longest_sequences[index]
+    }
+
+    fn get_longest_sequence(&self, s: Space) -> &i32 {
+        let index = match s {
+            Space::RED => 0,
+            Space::BLACK => 1,
+            Space::EMPTY => panic!("EMPTY where only RED and BLACK are options!"),
+        };
+        &self.longest_sequences[index]
     }
 
     pub fn insert(&mut self, c: i32, s: Space) -> Option<bool> {
@@ -118,6 +143,12 @@ impl Board {
             index += 1;
         }
         available
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.board
+            .iter()
+            .all(|row| row.iter().all(|s| *s != Space::EMPTY))
     }
 }
 
@@ -180,15 +211,22 @@ const MAX_DEPTH: i32 = 7;
 // Simple heuristic: center-of-mass of their spaces relative to the bottom center
 // the more they have near there, the better
 fn _minimax_heuristic(board: &Board, player: Space) -> i32 {
-    let mut weight = 0;
-    for r in 0..BOARD_HEIGHT as i32 {
-        for c in 0..BOARD_WIDTH as i32 {
-            if *board.get(r, c).unwrap() == player {
-                weight += r.pow(2) + (c - BOARD_WIDTH as i32 / 2).pow(2)
-            }
-        }
-    }
-    return -weight;
+    let max_sequence_differences =
+        *board.get_longest_sequence(player) - *board.get_longest_sequence(player.opposing());
+    // TODO I'm not sure if this part of the heuristic is actually a good idea
+    // beforehand, it would cause the games to end in ties
+    // but I don't think that's necessarily better
+    //
+    // let mut weight = 0;
+    // for r in 0..BOARD_HEIGHT as i32 {
+    //     for c in 0..BOARD_WIDTH as i32 {
+    //         if *board.get(r, c).unwrap() == player {
+    //             weight += r.pow(2) + (c - BOARD_WIDTH as i32 / 2).pow(2)
+    //         }
+    //     }
+    // }
+    //max_sequence_differences * 1000 + cmp::min(weight, 100)
+    max_sequence_differences
 }
 
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
@@ -200,7 +238,7 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     let mut best_score = i32::min_value();
 
     if depth > MAX_DEPTH {
-        let default_choice = available_cols[available_cols.len() / 2];
+        let default_choice = *available_cols.first().unwrap();
         return (default_choice, _minimax_heuristic(board, player));
     }
 
@@ -211,7 +249,11 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
             return (col, i32::max_value());
         }
         let (_, score) = _minimax(&local_board, player.opposing(), depth + 1);
-        if -score > best_score {
+        if -score > best_score
+            || (-score == best_score
+                && ((col - BOARD_WIDTH as i32 / 2).abs()
+                    < (best_choice - BOARD_WIDTH as i32 / 2).abs()))
+        {
             best_score = -score;
             best_choice = col;
         }
@@ -225,10 +267,14 @@ fn main() {
     let mut current_player = Space::RED;
     println!("{}", board);
     loop {
-        let game_is_over = match current_player {
+        let player_won_game = match current_player {
             Space::RED => {
                 println!("Red's turn!");
                 take_turn_human(&mut board, current_player)
+                // uncomment to have AI-v-AI
+                // board
+                //     .insert(minimax(&board, Space::RED), Space::RED)
+                //     .unwrap()
             }
             Space::BLACK => {
                 println!("Black's turn!");
@@ -240,12 +286,20 @@ fn main() {
         };
         println!("{}", board);
 
-        if game_is_over {
+        if player_won_game {
+            break;
+        } else if board.is_full() {
+            current_player = Space::EMPTY;
             break;
         }
 
         current_player = current_player.opposing();
     }
     println!("{}", board);
-    println!("Game over, {} wins! Thanks for playing!", current_player)
+    match current_player {
+        Space::RED => print!("Red wins! "),
+        Space::BLACK => print!("Black wins! "),
+        Space::EMPTY => print!("Tie game! "),
+    }
+    println!("Thanks for playing!")
 }
