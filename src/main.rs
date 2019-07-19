@@ -1,6 +1,5 @@
 use std::fmt;
 use std::io;
-// use std::ops::{Index, IndexMut};
 
 const BOARD_WIDTH: usize = 7;
 const BOARD_HEIGHT: usize = 6;
@@ -176,7 +175,21 @@ fn minimax(board: &Board, player: Space) -> i32 {
     choice
 }
 
-const MAX_DEPTH: i32 = 6;
+const MAX_DEPTH: i32 = 7;
+
+// Simple heuristic: center-of-mass of their spaces relative to the bottom center
+// the more they have near there, the better
+fn _minimax_heuristic(board: &Board, player: Space) -> i32 {
+    let mut weight = 0;
+    for r in 0..BOARD_HEIGHT as i32 {
+        for c in 0..BOARD_WIDTH as i32 {
+            if *board.get(r, c).unwrap() == player {
+                weight += r.pow(2) + (c - BOARD_WIDTH as i32 / 2).pow(2)
+            }
+        }
+    }
+    return -weight;
+}
 
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     let available_cols = board.get_available_columns();
@@ -187,14 +200,15 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     let mut best_score = i32::min_value();
 
     if depth > MAX_DEPTH {
-        return (available_cols[0], 0);
+        let default_choice = available_cols[available_cols.len() / 2];
+        return (default_choice, _minimax_heuristic(board, player));
     }
 
     for col in available_cols {
         let mut local_board = board.clone();
         let won = local_board.insert(col, player).unwrap();
         if won {
-            return (col, 1);
+            return (col, i32::max_value());
         }
         let (_, score) = _minimax(&local_board, player.opposing(), depth + 1);
         if -score > best_score {
