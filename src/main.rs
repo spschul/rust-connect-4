@@ -46,7 +46,7 @@ impl Board {
         }
     }
 
-    pub fn win_in_direction(
+    fn win_in_direction(
         &mut self,
         (start_r, start_c): (i32, i32),
         (dir_r, dir_c): (i32, i32),
@@ -102,11 +102,23 @@ impl Board {
         self.board.get(r)?.get(c)
     }
 
-    // TODO: is there a better way of having get and get_mut such that they aren't copied?
+    // TODO: is there a better way of having get and get_mut such that they aren't copy/pasted?
     pub fn get_mut(&mut self, r: i32, c: i32) -> Option<&mut Space> {
         let r = r as usize;
         let c = c as usize;
         self.board.get_mut(r)?.get_mut(c)
+    }
+
+    pub fn get_available_columns(&self) -> Vec<i32> {
+        let mut available: Vec<i32> = Vec::new();
+        let mut index = 0;
+        while let Some(s) = self.get((BOARD_HEIGHT - 1) as i32, index) {
+            if *s == Space::EMPTY {
+                available.push(index);
+            }
+            index += 1;
+        }
+        available
     }
 }
 
@@ -121,6 +133,7 @@ impl fmt::Display for Board {
         write!(f, "") // TODO is there a better way?
     }
 }
+
 fn get_col() -> Result<i32, String> {
     let mut input = String::new();
     io::stdin()
@@ -134,7 +147,8 @@ fn take_turn_human(board: &mut Board, s: Space) -> bool {
         if let Ok(col) = get_col() {
             if let Some(game_ended) = board.insert(col, s) {
                 if game_ended {
-                    println!("{} wins!", s)
+                    println!("{} wins!", s);
+                    return true;
                 } else {
                     break;
                 }
@@ -145,23 +159,60 @@ fn take_turn_human(board: &mut Board, s: Space) -> bool {
             println!("Please type a valid number.");
         }
     }
-    println!("{}", board);
     false
 }
 
 fn minimax(board: &Board, player: Space) -> i32 {
     // TODO minimax
+    println!("Test");
     println!("{}", *board);
     println!("{}", player);
     // always choose 0
     // guaranteed to be optimal
-    0
+    println!("{:?}", board.get_available_columns());
+
+    let mut board_stack = Vec::new();
+
+    // search starts with the board as it is
+    board_stack.push(board.clone());
+
+    let (choice, _) = _minimax(board, player, 0);
+    choice
+}
+
+const MAX_DEPTH: i32 = 4;
+
+// TODO macro should make these
+fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
+    let available_cols = board.get_available_columns();
+    let mut best_choice = -1;
+    let mut best_score = -1;
+
+    if depth > MAX_DEPTH {
+        return (available_cols[0], 0);
+    }
+
+    for col in available_cols {
+        let mut local_board = board.clone();
+        let won = local_board.insert(col, player).unwrap();
+        // println!("{}", local_board);
+        if won {
+            return (col, 1);
+        }
+        let (_, score) = _minimax(&local_board, player.opposing(), depth + 1);
+        if score > best_score {
+            best_score = score;
+            best_choice = col
+        }
+    }
+    (best_choice, best_score)
 }
 
 fn main() {
     let mut board = Board::new();
 
     let mut current_player = Space::RED;
+    println!("{}", board);
     loop {
         let game_is_over = match current_player {
             Space::RED => {
@@ -176,6 +227,7 @@ fn main() {
             }
             Space::EMPTY => panic!("This should never happen!"),
         };
+        println!("{}", board);
 
         if game_is_over {
             break;
