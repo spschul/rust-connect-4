@@ -206,6 +206,7 @@ fn minimax(board: &Board, player: Space) -> i32 {
     choice
 }
 
+// TODO better way?
 const MAX_DEPTH: i32 = 7;
 
 // Simple heuristic: center-of-mass of their spaces relative to the bottom center
