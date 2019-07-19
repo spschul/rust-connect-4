@@ -124,6 +124,10 @@ impl Board {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..BOARD_WIDTH {
+            print!("{} ", i,);
+        }
+        println!();
         for row in self.board.iter().rev() {
             for sp in row.iter() {
                 write!(f, "{} ", sp)?;
@@ -163,14 +167,6 @@ fn take_turn_human(board: &mut Board, s: Space) -> bool {
 }
 
 fn minimax(board: &Board, player: Space) -> i32 {
-    // TODO minimax
-    println!("Test");
-    println!("{}", *board);
-    println!("{}", player);
-    // always choose 0
-    // guaranteed to be optimal
-    println!("{:?}", board.get_available_columns());
-
     let mut board_stack = Vec::new();
 
     // search starts with the board as it is
@@ -180,13 +176,16 @@ fn minimax(board: &Board, player: Space) -> i32 {
     choice
 }
 
-const MAX_DEPTH: i32 = 4;
+const MAX_DEPTH: i32 = 6;
 
 // TODO macro should make these
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     let available_cols = board.get_available_columns();
-    let mut best_choice = -1;
-    let mut best_score = -1;
+    let mut best_choice = match available_cols.first() {
+        Some(x) => *x,
+        None => return (0, 0),
+    };
+    let mut best_score = i32::min_value();
 
     if depth > MAX_DEPTH {
         return (available_cols[0], 0);
@@ -195,14 +194,13 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     for col in available_cols {
         let mut local_board = board.clone();
         let won = local_board.insert(col, player).unwrap();
-        // println!("{}", local_board);
         if won {
             return (col, 1);
         }
         let (_, score) = _minimax(&local_board, player.opposing(), depth + 1);
-        if score > best_score {
-            best_score = score;
-            best_choice = col
+        if -score > best_score {
+            best_score = -score;
+            best_choice = col;
         }
     }
     (best_choice, best_score)
@@ -236,5 +234,5 @@ fn main() {
         current_player = current_player.opposing();
     }
     println!("{}", board);
-    println!("Game over! Thanks for playing!")
+    println!("Game over, {} wins! Thanks for playing!", current_player)
 }
