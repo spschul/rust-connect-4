@@ -65,8 +65,8 @@ impl Board {
         }
         let mut count_backward = 0;
         while let Some(s) = self.get(
-            start_r - (dir_r * count_backward + 1),
-            start_c - (dir_c * count_backward + 1),
+            start_r - dir_r * (count_backward + 1),
+            start_c - dir_c * (count_backward + 1),
         ) {
             if start_s == *s {
                 count_backward += 1;
