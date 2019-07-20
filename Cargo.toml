@@ -1,0 +1,8 @@
+[package]
+name = "connect-four"
+version = "0.1.0"
+authors = ["Steven Schulte <spschul@umich.edu>"]
+edition = "2018"
+
+[dependencies]
+rayon = "1.1"
