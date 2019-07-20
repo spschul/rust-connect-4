@@ -2,9 +2,14 @@ use std::cmp;
 use std::fmt;
 use std::io;
 
+// use rayon::prelude::*;
+
 const BOARD_WIDTH: usize = 7;
 const BOARD_HEIGHT: usize = 6;
 const LENGTH_TO_WIN: i32 = 4;
+
+// TODO better way?
+const MAX_DEPTH: i32 = 7;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Space {
@@ -133,18 +138,6 @@ impl Board {
         self.board.get_mut(r)?.get_mut(c)
     }
 
-    pub fn get_available_columns(&self) -> Vec<i32> {
-        let mut available: Vec<i32> = Vec::new();
-        let mut index = 0;
-        while let Some(s) = self.get((BOARD_HEIGHT - 1) as i32, index) {
-            if *s == Space::EMPTY {
-                available.push(index);
-            }
-            index += 1;
-        }
-        available
-    }
-
     pub fn is_full(&self) -> bool {
         self.board
             .iter()
@@ -202,64 +195,45 @@ fn minimax(board: &Board, player: Space) -> i32 {
     // search starts with the board as it is
     board_stack.push(board.clone());
 
-    let (choice, _) = _minimax(board, player, 0);
+    let (_, choice) = _minimax(board, player, 0);
     choice
 }
-
-// TODO better way?
-const MAX_DEPTH: i32 = 7;
 
 // Simple heuristic: center-of-mass of their spaces relative to the bottom center
 // the more they have near there, the better
 fn _minimax_heuristic(board: &Board, player: Space) -> i32 {
-    let max_sequence_differences =
-        *board.get_longest_sequence(player) - *board.get_longest_sequence(player.opposing());
-    // TODO I'm not sure if this part of the heuristic is actually a good idea
-    // beforehand, it would cause the games to end in ties
-    // but I don't think that's necessarily better
-    //
-    // let mut weight = 0;
-    // for r in 0..BOARD_HEIGHT as i32 {
-    //     for c in 0..BOARD_WIDTH as i32 {
-    //         if *board.get(r, c).unwrap() == player {
-    //             weight += r.pow(2) + (c - BOARD_WIDTH as i32 / 2).pow(2)
-    //         }
-    //     }
-    // }
-    //max_sequence_differences * 1000 + cmp::min(weight, 100)
-    max_sequence_differences
+    *board.get_longest_sequence(player) - *board.get_longest_sequence(player.opposing())
 }
 
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
-    let available_cols = board.get_available_columns();
-    let mut best_choice = match available_cols.first() {
-        Some(x) => *x,
-        None => return (0, 0),
-    };
-    let mut best_score = i32::min_value();
-
-    if depth > MAX_DEPTH {
-        let default_choice = *available_cols.first().unwrap();
-        return (default_choice, _minimax_heuristic(board, player));
-    }
-
-    for col in available_cols {
-        let mut local_board = board.clone();
-        let won = local_board.insert(col, player).unwrap();
-        if won {
-            return (col, i32::max_value());
-        }
-        let (_, score) = _minimax(&local_board, player.opposing(), depth + 1);
-        if -score > best_score
-            || (-score == best_score
-                && ((col - BOARD_WIDTH as i32 / 2).abs()
-                    < (best_choice - BOARD_WIDTH as i32 / 2).abs()))
-        {
-            best_score = -score;
-            best_choice = col;
-        }
-    }
-    (best_choice, best_score)
+    (0..BOARD_WIDTH as i32)
+        .into_iter()
+        .filter(|c| *board.get((BOARD_HEIGHT - 1) as i32, *c).unwrap() == Space::EMPTY)
+        .map(|col| match depth > MAX_DEPTH {
+            true => (_minimax_heuristic(board, player), col),
+            false => {
+                let mut local_board = board.clone();
+                match local_board.insert(col, player).unwrap() {
+                    true => (i32::max_value(), col),
+                    false => {
+                        let (score, _) = _minimax(&local_board, player.opposing(), depth + 1);
+                        (-score, col)
+                    }
+                }
+            }
+        })
+        .max_by(|a, b| {
+            let (score_a, col_a) = a;
+            let (score_b, col_b) = b;
+            let score_order = score_a.cmp(score_b);
+            match score_order {
+                cmp::Ordering::Equal => (&-(col_a - (BOARD_WIDTH as i32 / 2)).abs()).cmp(&-(col_b - (BOARD_WIDTH as i32 / 2)).abs()),
+                _ => score_order,
+            }
+        })
+        // it's possible that we've reached a tie game state, no moves possible
+        // in this case the action doesn't matter and the score is 0
+        .unwrap_or((0, 0))
 }
 
 fn main() {
@@ -272,7 +246,7 @@ fn main() {
             Space::RED => {
                 println!("Red's turn!");
                 take_turn_human(&mut board, current_player)
-                // uncomment to have AI-v-AI
+                // uncomment and comment above to have AI-v-AI
                 // board
                 //     .insert(minimax(&board, Space::RED), Space::RED)
                 //     .unwrap()
