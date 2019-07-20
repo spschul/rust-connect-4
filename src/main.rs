@@ -2,7 +2,7 @@ use std::cmp;
 use std::fmt;
 use std::io;
 
-use rayon::prelude::*;
+// use rayon::prelude::*;
 
 const BOARD_WIDTH: usize = 7;
 const BOARD_HEIGHT: usize = 6;
@@ -207,14 +207,13 @@ fn _minimax_heuristic(board: &Board, player: Space) -> i32 {
 
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     (0..BOARD_WIDTH as i32)
-        .into_par_iter()
+        .into_iter()
         .filter(|c| *board.get((BOARD_HEIGHT - 1) as i32, *c).unwrap() == Space::EMPTY)
         .map(|col| match depth > MAX_DEPTH {
             true => (_minimax_heuristic(board, player), col),
             false => {
                 let mut local_board = board.clone();
-                let insert_result = local_board.insert(col, player).unwrap();
-                match insert_result {
+                match local_board.insert(col, player).unwrap() {
                     true => (i32::max_value(), col),
                     false => {
                         let (score, _) = _minimax(&local_board, player.opposing(), depth + 1);
@@ -223,8 +222,18 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
                 }
             }
         })
-        .max()
-        .unwrap()
+        .max_by(|a, b| {
+            let (score_a, col_a) = a;
+            let (score_b, col_b) = b;
+            let score_order = score_a.cmp(score_b);
+            match score_order {
+                cmp::Ordering::Equal => (&-(col_a - (BOARD_WIDTH as i32 / 2)).abs()).cmp(&-(col_b - (BOARD_WIDTH as i32 / 2)).abs()),
+                _ => score_order,
+            }
+        })
+        // it's possible that we've reached a tie game state, no moves possible
+        // in this case the action doesn't matter and the score is 0
+        .unwrap_or((0, 0))
 }
 
 fn main() {
@@ -236,11 +245,11 @@ fn main() {
         let player_won_game = match current_player {
             Space::RED => {
                 println!("Red's turn!");
-                // take_turn_human(&mut board, current_player)
-                // uncomment to have AI-v-AI
-                board
-                    .insert(minimax(&board, Space::RED), Space::RED)
-                    .unwrap()
+                take_turn_human(&mut board, current_player)
+                // uncomment and comment above to have AI-v-AI
+                // board
+                //     .insert(minimax(&board, Space::RED), Space::RED)
+                //     .unwrap()
             }
             Space::BLACK => {
                 println!("Black's turn!");
