@@ -13,8 +13,8 @@ const MAX_DEPTH: i32 = 7;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Space {
-    RED,
-    BLACK,
+    X,
+    O,
     EMPTY,
 }
 
@@ -22,8 +22,8 @@ impl Space {
     fn opposing(self) -> Space {
         // passing 'self' by value suggested by Clippy. Does it actually make sense?
         match self {
-            Space::RED => Space::BLACK,
-            Space::BLACK => Space::RED,
+            Space::X => Space::O,
+            Space::O => Space::X,
             Space::EMPTY => panic!("Called opposing with empty!"),
         }
     }
@@ -32,8 +32,8 @@ impl Space {
 impl fmt::Display for Space {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Space::RED => write!(f, "R"),
-            Space::BLACK => write!(f, "B"),
+            Space::X => write!(f, "x"),
+            Space::O => write!(f, "o"),
             Space::EMPTY => write!(f, "."),
         }
     }
@@ -90,18 +90,18 @@ impl Board {
     // TODO gotta be a better way than just to copy/paste
     fn get_longest_sequence_mut(&mut self, s: Space) -> &mut i32 {
         let index = match s {
-            Space::RED => 0,
-            Space::BLACK => 1,
-            Space::EMPTY => panic!("EMPTY where only RED and BLACK are options!"),
+            Space::X => 0,
+            Space::O => 1,
+            Space::EMPTY => panic!("EMPTY where only X and O are options!"),
         };
         &mut self.longest_sequences[index]
     }
 
     fn get_longest_sequence(&self, s: Space) -> &i32 {
         let index = match s {
-            Space::RED => 0,
-            Space::BLACK => 1,
-            Space::EMPTY => panic!("EMPTY where only RED and BLACK are options!"),
+            Space::X => 0,
+            Space::O => 1,
+            Space::EMPTY => panic!("EMPTY where only X and O are options!"),
         };
         &self.longest_sequences[index]
     }
@@ -239,22 +239,22 @@ fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
 fn main() {
     let mut board = Board::new();
 
-    let mut current_player = Space::RED;
+    let mut current_player = Space::X;
     println!("{}", board);
     loop {
         let player_won_game = match current_player {
-            Space::RED => {
-                println!("Red's turn!");
+            Space::X => {
+                println!("X's turn!");
                 take_turn_human(&mut board, current_player)
                 // uncomment and comment above to have AI-v-AI
                 // board
-                //     .insert(minimax(&board, Space::RED), Space::RED)
+                //     .insert(minimax(&board, Space::X), Space::X)
                 //     .unwrap()
             }
-            Space::BLACK => {
-                println!("Black's turn!");
+            Space::O => {
+                println!("O's turn!");
                 board
-                    .insert(minimax(&board, Space::BLACK), Space::BLACK)
+                    .insert(minimax(&board, Space::O), Space::O)
                     .unwrap()
             }
             Space::EMPTY => panic!("This should never happen!"),
@@ -272,8 +272,8 @@ fn main() {
     }
     println!("{}", board);
     match current_player {
-        Space::RED => print!("Red wins! "),
-        Space::BLACK => print!("Black wins! "),
+        Space::X => print!("X wins! "),
+        Space::O => print!("O wins! "),
         Space::EMPTY => print!("Tie game! "),
     }
     println!("Thanks for playing!")
