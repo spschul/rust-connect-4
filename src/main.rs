@@ -9,7 +9,7 @@ const BOARD_HEIGHT: usize = 6;
 const LENGTH_TO_WIN: i32 = 4;
 
 // TODO better way?
-const MAX_DEPTH: i32 = 6;
+const MAX_DEPTH: i32 = 7;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Space {
@@ -201,19 +201,16 @@ fn minimax(board: &Board, player: Space) -> i32 {
 
 // Simple heuristic: center-of-mass of their spaces relative to the bottom center
 // the more they have near there, the better
-fn _minimax_heuristic(board: &Board, player: Space, col: i32) -> i32 {
-    let max_sequence_differences =
-        *board.get_longest_sequence(player) - *board.get_longest_sequence(player.opposing());
-    max_sequence_differences * (BOARD_WIDTH as i32 + 1) - (col - (BOARD_WIDTH as i32 / 2)).abs()
-    // max_sequence_differences * 0 * (BOARD_WIDTH as i32 + 1) - (col - (BOARD_WIDTH as i32 / 2)).abs() // TODO
+fn _minimax_heuristic(board: &Board, player: Space) -> i32 {
+    *board.get_longest_sequence(player) - *board.get_longest_sequence(player.opposing())
 }
 
 fn _minimax(board: &Board, player: Space, depth: i32) -> (i32, i32) {
     (0..BOARD_WIDTH as i32)
-        .into_iter()
+        .into_par_iter()
         .filter(|c| *board.get((BOARD_HEIGHT - 1) as i32, *c).unwrap() == Space::EMPTY)
         .map(|col| match depth > MAX_DEPTH {
-            true => (_minimax_heuristic(board, player, col), col),
+            true => (_minimax_heuristic(board, player), col),
             false => {
                 let mut local_board = board.clone();
                 let insert_result = local_board.insert(col, player).unwrap();
